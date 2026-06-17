@@ -15,7 +15,7 @@
     --is-mono: 1;
     
     /* Автоматическая сборка темы на лету через CSS-переменные (Светлая тема) */
-    --bg: hsl(var(--hue), calc(var(--sat) * 0.3), 95%);
+    --bg: hsl(var(--hue), calc(var(--sat) * 1), 95%);
     --card: hsla(var(--hue), calc(var(--sat) * 0.25), 100%, 0.65);
     --card-border: rgba(0, 0, 0, 0.04);
     --text: hsl(var(--hue), calc(var(--sat) * 0.4), 8%);
@@ -115,16 +115,23 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    padding-bottom: 4%;
     transition: background var(--transition-speed) ease, border-color var(--transition-speed) ease;
+    container-type: inline-size;
   }
 
   .flip-card .value {
-    font-size: clamp(60px, 24vw, 38vh);
+    font-size: clamp(60px, min(65cqw, 35vh), 38vh);
     font-weight: 800;
     line-height: 1;
     color: var(--text);
-    letter-spacing: -0.04em;
+    letter-spacing: 0.02em;
+    font-variant-numeric: tabular-nums;
     will-change: transform;
+    max-height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   
   .flip-card .value.tick {
@@ -139,13 +146,14 @@
 
   .flip-card .label {
     position: absolute;
-    bottom: 6%;
-    font-size: clamp(9px, 1vw, 13px);
+    bottom: 4%;
+    font-size: clamp(9px, 1.2vw, 13px);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.2em;
     color: var(--text-secondary);
     transition: color var(--transition-speed) ease;
+    line-height: 1;
   }
 
   .flip-card .divider {
@@ -353,7 +361,8 @@
   @media (max-width: 768px) {
     .app { padding: 16px; flex-direction: column; }
     .clock-container { gap: 12px; margin-top: -6vh; }
-    .flip-card { border-radius: calc(var(--radius) * 0.7); }
+    .flip-card { border-radius: calc(var(--radius) * 0.7); padding-bottom: 6%; }
+    .flip-card .value { font-size: clamp(40px, min(65cqw, 22vh), 26vh); }
     .am-pm { right: auto; bottom: -30px; left: 50%; transform: translateX(-50%); font-size: 18px; }
     
     .panel {
@@ -781,13 +790,11 @@
 
   function resetHide(){
     panel.classList.remove('hidden');
-    clockContainer.classList.remove('hidden');
     document.body.style.cursor='';
     clearTimeout(hideTimer);
     hideTimer=setTimeout(()=>{
       if(running || mode==='clock'){
         panel.classList.add('hidden');
-        clockContainer.classList.add('hidden');
         document.body.style.cursor='none';
       }
     },3500);
