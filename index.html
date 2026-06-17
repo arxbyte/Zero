@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ZERO — Pure Monochrome Flip Clock</title>
+<title>ZERO - Flip Clock</title>
 <link rel="icon" type="image/png" href="favicon.png">
 <style>
   *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -35,20 +35,21 @@
   }
 
   [data-theme="dark"] {
-    /* Автоматическая сборка темы (Тёмная тема) */
-    --bg: hsl(var(--hue), calc(var(--sat) * 0.2), 5%);
-    --card: hsla(var(--hue), calc(var(--sat) * 0.15), 12%, 0.7);
-    --card-border: rgba(255, 255, 255, 0.04);
-    --text: hsl(var(--hue), calc(var(--sat) * 0.2), 94%);
-    --text-secondary: hsl(var(--hue), calc(var(--sat) * 0.1), 62%);
-    --shadow: 0 16px 32px rgba(0, 0, 0, 0.4);
-    --shadow-deep: 0 30px 60px rgba(0, 0, 0, 0.5);
-    --panel-bg: hsla(var(--hue), calc(var(--sat) * 0.15), 12%, 0.5);
-    --btn-bg: rgba(255, 255, 255, 0.05);
-    --btn-hover: rgba(255, 255, 255, 0.1);
-    --divider: rgba(255, 255, 255, 0.06);
-    --timer-dial: rgba(255, 255, 255, 0.01);
-    --accent: hsl(var(--hue), var(--sat), 94%);
+    /* Автоматическая сборка темы (Тёмная тема) — Сделана более насыщенной и контрастной */
+    --bg: hsl(var(--hue), calc(var(--sat) * 0.25), 6%);
+    --card: hsla(var(--hue), calc(var(--sat) * 0.2), 14%, 0.75);
+    --card-border: rgba(255, 255, 255, 0.07);
+    --text: hsl(var(--hue), calc(var(--sat) * 0.1), 98%);
+    --text-secondary: hsl(var(--hue), calc(var(--sat) * 0.1), 68%);
+    --shadow: 0 16px 32px rgba(0, 0, 0, 0.5);
+    --shadow-deep: 0 30px 60px rgba(0, 0, 0, 0.6);
+    --panel-bg: hsla(var(--hue), calc(var(--sat) * 0.2), 14%, 0.6);
+    --btn-bg: rgba(255, 255, 255, 0.07);
+    --btn-hover: rgba(255, 255, 255, 0.14);
+    --divider: rgba(255, 255, 255, 0.1);
+    --timer-dial: rgba(255, 255, 255, 0.02);
+    /* Добавляем сочности акценту в темной теме, если это не монохром */
+    --accent: hsl(var(--hue), calc(var(--sat) + (15% * (1 - var(--is-mono)))), 95%);
   }
 
   html, body { width: 100%; height: 100%; overflow: hidden; }
@@ -115,7 +116,6 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding-bottom: 4%;
     transition: background var(--transition-speed) ease, border-color var(--transition-speed) ease;
     container-type: inline-size;
   }
@@ -123,7 +123,6 @@
   .flip-card .value {
     font-size: clamp(60px, min(65cqw, 35vh), 38vh);
     font-weight: 800;
-    line-height: 1;
     color: var(--text);
     letter-spacing: 0.02em;
     font-variant-numeric: tabular-nums;
@@ -132,6 +131,12 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    /* Улучшенная точечная центровка */
+    line-height: 0.8;
+    margin: 0;
+    padding: 0;
+    position: relative;
+    transform: translateY(-2%);
   }
   
   .flip-card .value.tick {
@@ -139,14 +144,14 @@
   }
 
   @keyframes pulse {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-    100% { transform: scale(1); }
+    0% { transform: scale(1) translateY(-2%); }
+    50% { transform: scale(1.05) translateY(-2%); }
+    100% { transform: scale(1) translateY(-2%); }
   }
 
   .flip-card .label {
     position: absolute;
-    bottom: 4%;
+    bottom: 5%;
     font-size: clamp(9px, 1.2vw, 13px);
     font-weight: 700;
     text-transform: uppercase;
@@ -205,7 +210,7 @@
     transition: color var(--transition-speed) ease;
   }
 
-  /* Адаптивная панель управления */
+  /* Адаптивная панель управления с плавной перестройкой геометрии */
   .panel {
     position: fixed;
     bottom: 24px; left: 50%;
@@ -220,12 +225,30 @@
     backdrop-filter: blur(30px);
     -webkit-backdrop-filter: blur(30px);
     box-shadow: var(--shadow);
-    transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.25, 1, 0.5, 1),
-                background var(--transition-speed) ease, border-color var(--transition-speed) ease;
+    /* Плавное изменение размеров панели при переключении контента */
+    transition: opacity 0.4s ease, 
+                transform 0.4s cubic-bezier(0.25, 1, 0.5, 1),
+                background var(--transition-speed) ease, 
+                border-color var(--transition-speed) ease,
+                width 0.35s cubic-bezier(0.25, 1, 0.5, 1),
+                max-height 0.35s cubic-bezier(0.25, 1, 0.5, 1);
     z-index: 10;
     max-width: 92vw;
+    overflow: hidden;
   }
   .panel.hidden { opacity: 0; transform: translate(-50%, 20px); pointer-events: none; }
+
+  /* Плавное появление кнопок и разделителей без рывков */
+  .panel > .btn, 
+  .panel > .divider-v, 
+  .panel > .timer-input-group {
+    animation: panelItemAppear 0.35s cubic-bezier(0.25, 1, 0.5, 1) both;
+  }
+
+  @keyframes panelItemAppear {
+    from { opacity: 0; transform: scale(0.93); }
+    to { opacity: 1; transform: scale(1); }
+  }
 
   /* Контейнер навигации с умной перетекающей плашкой */
   .nav-group {
@@ -361,8 +384,8 @@
   @media (max-width: 768px) {
     .app { padding: 16px; flex-direction: column; }
     .clock-container { gap: 12px; margin-top: -6vh; }
-    .flip-card { border-radius: calc(var(--radius) * 0.7); padding-bottom: 6%; }
-    .flip-card .value { font-size: clamp(40px, min(65cqw, 22vh), 26vh); }
+    .flip-card { border-radius: calc(var(--radius) * 0.7); }
+    .flip-card .value { font-size: clamp(40px, min(65cqw, 22vh), 26vh); transform: translateY(-3%); }
     .am-pm { right: auto; bottom: -30px; left: 50%; transform: translateX(-50%); font-size: 18px; }
     
     .panel {
@@ -372,11 +395,19 @@
       justify-content: center;
       gap: 6px;
       border-radius: var(--radius-sm);
+      overflow: visible;
+      max-height: none;
     }
     .divider-v { display: none; }
     
     .timer-input-group { width: 100%; justify-content: center; margin: 2px 0; }
     .color-picker { width: 100%; justify-content: center; margin-top: 4px; }
+    
+    .panel > .btn, 
+    .panel > .divider-v, 
+    .panel > .timer-input-group {
+      animation: none;
+    }
   }
 </style>
 </head>
