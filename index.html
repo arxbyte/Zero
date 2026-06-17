@@ -131,12 +131,12 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    /* Улучшенная точечная центровка */
-    line-height: 0.8;
+    /* Идеальная математическая центровка без сдвигов */
+    line-height: 1;
     margin: 0;
     padding: 0;
-    position: relative;
-    transform: translateY(-2%);
+    height: 100%;
+    width: 100%;
   }
   
   .flip-card .value.tick {
@@ -144,21 +144,9 @@
   }
 
   @keyframes pulse {
-    0% { transform: scale(1) translateY(-2%); }
-    50% { transform: scale(1.05) translateY(-2%); }
-    100% { transform: scale(1) translateY(-2%); }
-  }
-
-  .flip-card .label {
-    position: absolute;
-    bottom: 5%;
-    font-size: clamp(9px, 1.2vw, 13px);
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.2em;
-    color: var(--text-secondary);
-    transition: color var(--transition-speed) ease;
-    line-height: 1;
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
   }
 
   .flip-card .divider {
@@ -385,7 +373,7 @@
     .app { padding: 16px; flex-direction: column; }
     .clock-container { gap: 12px; margin-top: -6vh; }
     .flip-card { border-radius: calc(var(--radius) * 0.7); }
-    .flip-card .value { font-size: clamp(40px, min(65cqw, 22vh), 26vh); transform: translateY(-3%); }
+    .flip-card .value { font-size: clamp(40px, min(65cqw, 22vh), 26vh); }
     .am-pm { right: auto; bottom: -30px; left: 50%; transform: translateX(-50%); font-size: 18px; }
     
     .panel {
@@ -422,7 +410,6 @@
     <div class="flip-card" id="cardH">
       <div class="value" id="valH">00</div>
       <div class="divider"></div>
-      <div class="label" id="labelH">часы</div>
     </div>
     
     <span class="separator" id="sep">
@@ -433,7 +420,6 @@
     <div class="flip-card" id="cardM">
       <div class="value" id="valM">00</div>
       <div class="divider"></div>
-      <div class="label" id="labelM">минуты</div>
       <div class="am-pm" id="ampm" style="display:none">AM</div>
     </div>
   </div>
@@ -579,8 +565,6 @@
     }
     updateValue(valH, pad(h));
     updateValue(valM, pad(m));
-    $('labelH').textContent='часы';
-    $('labelM').textContent='минуты';
   }
 
   function setStopwatch(el){
@@ -591,14 +575,10 @@
     if (m < 60) {
       updateValue(valH, pad(m));
       updateValue(valM, pad(s));
-      $('labelH').textContent='минуты';
-      $('labelM').textContent='секунды';
     } else {
       const h = Math.floor(m / 60);
       updateValue(valH, pad(h));
       updateValue(valM, pad(m % 60));
-      $('labelH').textContent='часы';
-      $('labelM').textContent='минуты';
     }
   }
 
@@ -609,13 +589,9 @@
     if(h > 0 || (+inputH.value > 0)){
       updateValue(valH, pad(h));
       updateValue(valM, pad(m));
-      $('labelH').textContent='часы';
-      $('labelM').textContent='минуты';
     } else {
       updateValue(valH, pad(m));
       updateValue(valM, pad(s));
-      $('labelH').textContent='минуты';
-      $('labelM').textContent='секунды';
     }
     
     if(tmTotal > 0){
@@ -844,3 +820,4 @@
 </script>
 </body>
 </html>
+
