@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZERO — Pure Monochrome Flip Clock</title>
+<link rel="icon" type="image/png" href="favicon.png">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  
+  :root {
+    /* Базовые параметры управления цветом из JS */
+    --hue: 0;
+    --sat: 0%;
+    --is-mono: 1;
+    
+    /* Автоматическая сборка темы на лету через CSS-переменные (Светлая тема) */
+    --bg: hsl(var(--hue), calc(var(--sat) * 0.3), 95%);
+    --card: hsla(var(--hue), calc(var(--sat) * 0.25), 100%, 0.65);
+    --card-border: rgba(0, 0, 0, 0.04);
+    --text: hsl(var(--hue), calc(var(--sat) * 0.4), 8%);
+    --text-secondary: hsl(var(--hue), calc(var(--sat) * 0.15), 45%);
+    --shadow: 0 16px 32px rgba(0, 0, 0, 0.02);
+    --shadow-deep: 0 30px 60px rgba(0, 0, 0, 0.04);
+    --panel-bg: hsla(var(--hue), calc(var(--sat) * 0.25), 100%, 0.5);
+    --btn-bg: rgba(0, 0, 0, 0.03);
+    --btn-hover: rgba(0, 0, 0, 0.07);
+    --divider: rgba(0, 0, 0, 0.05);
+    --timer-dial: rgba(0, 0, 0, 0.01);
+    --accent: hsl(var(--hue), var(--sat), 8%);
+    
+    --radius: 40px;
+    --radius-sm: 16px;
+    --transition-speed: 0.4s;
+  }
+
+  [data-theme="dark"] {
+    /* Автоматическая сборка темы (Тёмная тема) */
+    --bg: hsl(var(--hue), calc(var(--sat) * 0.2), 5%);
+    --card: hsla(var(--hue), calc(var(--sat) * 0.15), 12%, 0.7);
+    --card-border: rgba(255, 255, 255, 0.04);
+    --text: hsl(var(--hue), calc(var(--sat) * 0.2), 94%);
+    --text-secondary: hsl(var(--hue), calc(var(--sat) * 0.1), 62%);
+    --shadow: 0 16px 32px rgba(0, 0, 0, 0.4);
+    --shadow-deep: 0 30px 60px rgba(0, 0, 0, 0.5);
+    --panel-bg: hsla(var(--hue), calc(var(--sat) * 0.15), 12%, 0.5);
+    --btn-bg: rgba(255, 255, 255, 0.05);
+    --btn-hover: rgba(255, 255, 255, 0.1);
+    --divider: rgba(255, 255, 255, 0.06);
+    --timer-dial: rgba(255, 255, 255, 0.01);
+    --accent: hsl(var(--hue), var(--sat), 94%);
+  }
+
+  html, body { width: 100%; height: 100%; overflow: hidden; }
+  
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background var(--transition-speed) ease, color var(--transition-speed) ease;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* Логотип внутри панели управления */
+  .brand-logo {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    color: var(--text);
+    opacity: 0.4;
+    padding: 0 6px 0 4px;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
+  .panel:hover .brand-logo { opacity: 0.8; }
+
+  .app {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .clock-container {
+    display: flex;
+    gap: 3vw;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    max-width: 1200px;
+    transition: transform var(--transition-speed) cubic-bezier(0.25, 1, 0.5, 1), opacity var(--transition-speed) ease;
+    z-index: 2;
+  }
+  .clock-container.hidden { transform: scale(0.98); opacity: 0.08; }
+
+  .flip-card {
+    flex: 1;
+    aspect-ratio: 1 / 1.05;
+    max-height: 60vh;
+    border-radius: var(--radius);
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    backdrop-filter: blur(30px) saturate(140%);
+    -webkit-backdrop-filter: blur(30px) saturate(140%);
+    box-shadow: var(--shadow-deep);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: background var(--transition-speed) ease, border-color var(--transition-speed) ease;
+  }
+
+  .flip-card .value {
+    font-size: clamp(60px, 24vw, 38vh);
+    font-weight: 800;
+    line-height: 1;
+    color: var(--text);
+    letter-spacing: -0.04em;
+    will-change: transform;
+  }
+  
+  .flip-card .value.tick {
+    animation: pulse 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+  }
+
+  .flip-card .label {
+    position: absolute;
+    bottom: 6%;
+    font-size: clamp(9px, 1vw, 13px);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: var(--text-secondary);
+    transition: color var(--transition-speed) ease;
+  }
+
+  .flip-card .divider {
+    position: absolute;
+    left: 0; right: 0; top: 50%; height: 1px;
+    background: var(--divider);
+    transform: translateY(-0.5px);
+    transition: background var(--transition-speed) ease;
+  }
+  
+  .flip-card .divider::before, .flip-card .divider::after {
+    content: ''; position: absolute; top: -3px; width: 6px; height: 6px;
+    border-radius: 50%; background: var(--accent);
+    transition: background var(--transition-speed) ease;
+  }
+  .flip-card .divider::before { left: -3px; }
+  .flip-card .divider::after { right: -3px; }
+
+  /* Плавный Beat-эффект для двоеточия */
+  .separator {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(12px, 3vh, 30px);
+    justify-content: center;
+    align-items: center;
+    width: clamp(10px, 2vw, 20px);
+    animation: smoothBlink 1.5s ease-in-out infinite;
+  }
+  .separator-dot {
+    width: clamp(10px, 1.5vw, 18px);
+    height: clamp(10px, 1.5vw, 18px);
+    background: var(--accent);
+    border-radius: 50%;
+    transition: background var(--transition-speed) ease;
+  }
+  @keyframes smoothBlink {
+    0%, 100% { opacity: 0.15; }
+    50% { opacity: 1; }
+  }
+
+  .am-pm {
+    font-size: clamp(12px, 2vw, 24px);
+    font-weight: 800;
+    color: var(--accent);
+    position: absolute;
+    right: -4vw;
+    bottom: 8%;
+    letter-spacing: 0.05em;
+    transition: color var(--transition-speed) ease;
+  }
+
+  /* Адаптивная панель управления */
+  .panel {
+    position: fixed;
+    bottom: 24px; left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 16px;
+    border-radius: var(--radius);
+    background: var(--panel-bg);
+    border: 1px solid var(--card-border);
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+    box-shadow: var(--shadow);
+    transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.25, 1, 0.5, 1),
+                background var(--transition-speed) ease, border-color var(--transition-speed) ease;
+    z-index: 10;
+    max-width: 92vw;
+  }
+  .panel.hidden { opacity: 0; transform: translate(-50%, 20px); pointer-events: none; }
+
+  /* Контейнер навигации с умной перетекающей плашкой */
+  .nav-group {
+    display: flex;
+    gap: 4px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .nav-indicator {
+    position: absolute;
+    top: 0; left: 0;
+    height: 100%;
+    border-radius: var(--radius-sm);
+    background: var(--text);
+    z-index: -1;
+    transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1), width 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+    pointer-events: none;
+  }
+
+  .btn {
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s, color 0.3s, border-color 0.2s, opacity 0.2s;
+    white-space: nowrap;
+  }
+  /* Обычные статичные кнопки и ховеры */
+  .panel > .btn { background: var(--btn-bg); }
+  .panel > .btn:hover { background: var(--btn-hover); }
+  .nav-group .btn:hover { background: rgba(0, 0, 0, 0.02); }
+  [data-theme="dark"] .nav-group .btn:hover { background: rgba(255, 255, 255, 0.02); }
+
+  /* Специфика переключателя */
+  .nav-group .btn.active { color: var(--bg); background: transparent !important; }
+  
+  /* Исправленный стиль и ховер для кнопки Старт/Пауза */
+  .btn.accent-btn { background: var(--accent); color: var(--bg); }
+  .btn.accent-btn:hover { background: var(--accent); opacity: 0.85; }
+  .btn:active { transform: scale(0.96); }
+
+  .btn-icon {
+    width: 36px; height: 36px; min-width: 36px;
+    border-radius: var(--radius-sm); border: none;
+    background: var(--btn-bg); color: var(--text);
+    font-size: 15px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.2s, transform 0.1s, color 0.2s;
+  }
+  .btn-icon:hover { background: var(--btn-hover); }
+  .btn-icon:active { transform: scale(0.96); }
+
+  .divider-v { width: 1px; height: 20px; background: var(--divider); margin: 0 3px; }
+
+  /* Форма таймера с удалением дефолтных стрелок инпутов */
+  .timer-input-group { display: flex; align-items: center; gap: 3px; }
+  .timer-input {
+    width: 42px; height: 36px; border-radius: var(--radius-sm);
+    border: 1px solid var(--card-border);
+    background: var(--btn-bg); color: var(--text);
+    font-size: 15px; font-weight: 700; text-align: center;
+    outline: none; transition: border-color 0.2s, color 0.2s;
+    -moz-appearance: textfield;
+  }
+  .timer-input::-webkit-outer-spin-button,
+  .timer-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .timer-input:focus { border-color: var(--text); background: var(--card); }
+  .timer-sep { font-size: 11px; font-weight: 700; color: var(--text-secondary); margin-right: 1px; }
+
+  /* Круговой прогресс таймера */
+  .timer-progress {
+    position: fixed;
+    top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.94);
+    width: min(84vw, 78vh); height: min(84vw, 78vh);
+    max-width: 800px; max-height: 800px;
+    border-radius: 50%;
+    background: var(--timer-dial);
+    border: 1px solid var(--card-border);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    opacity: 0; pointer-events: none;
+    z-index: 1; transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1), transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .timer-progress.active { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  .timer-progress svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .timer-progress circle {
+    fill: none; stroke: var(--accent); stroke-width: 3;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.1s linear, stroke var(--transition-speed) ease;
+  }
+
+  /* Колор-пикер */
+  .color-picker { display: flex; gap: 6px; align-items: center; }
+  .color-dot {
+    width: 20px; height: 20px; border-radius: 50%;
+    cursor: pointer; border: 2px solid transparent;
+    transition: transform 0.2s, border-color 0.2s;
+  }
+  .color-dot:hover { transform: scale(1.15); }
+  .color-dot.active { border-color: var(--text); transform: scale(1.05); }
+
+  /* Оверлей Уведомления */
+  .alert-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background-color: rgba(0, 0, 0, 0.15);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    z-index: 100; display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity 0.4s ease;
+    padding: 20px;
+  }
+  [data-theme="dark"] .alert-overlay { background-color: rgba(0, 0, 0, 0.4); }
+  .alert-overlay.visible { opacity: 1; pointer-events: auto; }
+  
+  .alert-box {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    padding: 30px 40px; border-radius: var(--radius);
+    text-align: center; box-shadow: var(--shadow-deep);
+    transform: scale(0.88); transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    width: 100%; max-width: 400px;
+  }
+  .alert-overlay.visible .alert-box { transform: scale(1); }
+  
+  .alert-title { font-size: 28px; font-weight: 800; color: var(--text); margin-bottom: 6px; }
+  .alert-desc { font-size: 15px; color: var(--text-secondary); margin-bottom: 20px; font-weight: 500; }
+
+  /* МЕДИА-ЗАПРОСЫ ДЛЯ СМАРТФОНОВ (Полная мобильная адаптация) */
+  @media (max-width: 768px) {
+    .app { padding: 16px; flex-direction: column; }
+    .clock-container { gap: 12px; margin-top: -6vh; }
+    .flip-card { border-radius: calc(var(--radius) * 0.7); }
+    .am-pm { right: auto; bottom: -30px; left: 50%; transform: translateX(-50%); font-size: 18px; }
+    
+    .panel {
+      bottom: 16px;
+      padding: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 6px;
+      border-radius: var(--radius-sm);
+    }
+    .divider-v { display: none; }
+    
+    .timer-input-group { width: 100%; justify-content: center; margin: 2px 0; }
+    .color-picker { width: 100%; justify-content: center; margin-top: 4px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+  <div class="timer-progress" id="timerDial">
+    <svg viewBox="0 0 720 720"><circle cx="360" cy="360" r="350" id="timerCircle"/></svg>
+  </div>
+
+  <div class="clock-container" id="clockContainer">
+    <div class="flip-card" id="cardH">
+      <div class="value" id="valH">00</div>
+      <div class="divider"></div>
+      <div class="label" id="labelH">часы</div>
+    </div>
+    
+    <span class="separator" id="sep">
+      <span class="separator-dot"></span>
+      <span class="separator-dot"></span>
+    </span>
+    
+    <div class="flip-card" id="cardM">
+      <div class="value" id="valM">00</div>
+      <div class="divider"></div>
+      <div class="label" id="labelM">минуты</div>
+      <div class="am-pm" id="ampm" style="display:none">AM</div>
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="panel">
+  <div class="brand-logo" id="brandLogo">ZERO</div>
+  <div class="divider-v"></div>
+
+  <div class="nav-group" id="navGroup">
+    <div class="nav-indicator" id="navIndicator"></div>
+    <button class="btn active" data-mode="clock" id="btnClock">Часы</button>
+    <button class="btn" data-mode="stopwatch" id="btnStopwatch">Секундомер</button>
+    <button class="btn" data-mode="timer" id="btnTimer">Таймер</button>
+  </div>
+  
+  <div class="divider-v"></div>
+  
+  <button class="btn accent-btn" id="btnControl" style="display:none">Старт</button>
+  <button class="btn" id="btnReset" style="display:none">Сброс</button>
+
+  <div class="timer-input-group" id="timerInputGroup" style="display:none">
+    <input class="timer-input" id="inputH" type="number" min="0" max="23" value="0">
+    <span class="timer-sep">ч</span>
+    <input class="timer-input" id="inputM" type="number" min="0" max="59" value="5">
+    <span class="timer-sep">м</span>
+    <input class="timer-input" id="inputS" type="number" min="0" max="59" value="0">
+    <span class="timer-sep">с</span>
+  </div>
+  
+  <div class="divider-v"></div>
+  <button class="btn" id="btnFormat">24ч</button>
+  <div class="divider-v"></div>
+
+  <button class="btn-icon" id="btnThemeToggle" title="Сменить тему">🌓</button>
+  
+  <div class="divider-v"></div>
+
+  <div class="color-picker" id="colorPicker">
+    <div class="color-dot" style="background:#4a90e2" data-hue="212" data-sat="85%" data-mono="0"></div>
+    <div class="color-dot" style="background:#50e3c2" data-hue="166" data-sat="75%" data-mono="0"></div>
+    <div class="color-dot" style="background:#b8e986" data-hue="89"  data-sat="68%" data-mono="0"></div>
+    <div class="color-dot" style="background:#ff92bb" data-hue="343" data-sat="100%" data-mono="0"></div>
+    <div class="color-dot" style="background:#bd10e0" data-hue="289" data-sat="74%" data-mono="0"></div>
+    <div class="color-dot" style="background:#8e8e93" data-hue="0"   data-sat="0%"  data-mono="1"></div>
+  </div>
+
+  <div class="divider-v"></div>
+  <button class="btn-icon" id="btnFullscreen">⛶</button>
+</div>
+
+<div class="alert-overlay" id="alertOverlay">
+  <div class="alert-box">
+    <div class="alert-title">Время вышло!</div>
+    <div class="alert-desc">Заданный интервал таймера полностью истёк.</div>
+    <button class="btn active" id="btnAlertClose" style="padding:12px 32px">Закрыть</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  const $ = s => document.getElementById(s);
+  const valH=$('valH'), valM=$('valM'), ampm=$('ampm');
+  const panel=$('panel'), clockContainer=$('clockContainer');
+  const btnClock=$('btnClock'), btnStopwatch=$('btnStopwatch'), btnTimer=$('btnTimer');
+  const btnControl=$('btnControl'), btnReset=$('btnReset'), btnFormat=$('btnFormat');
+  const btnFullscreen=$('btnFullscreen'), btnThemeToggle=$('btnThemeToggle');
+  const timerInputGroup=$('timerInputGroup'), inputH=$('inputH'), inputM=$('inputM'), inputS=$('inputS');
+  const timerDial=$('timerDial'), timerCircle=$('timerCircle');
+  const alertOverlay=$('alertOverlay'), btnAlertClose=$('btnAlertClose');
+  const navIndicator=$('navIndicator'), navGroup=$('navGroup');
+  
+  const CIRC = timerCircle.getTotalLength();
+  timerCircle.style.strokeDasharray = `${CIRC} ${CIRC}`;
+  timerCircle.style.strokeDashoffset = CIRC;
+
+  let mode='clock', format24=true, running=false, raf=null;
+  let swStart=0, swElapsed=0;
+  let tmTotal=0, tmRemain=0, tmLastTick=0;
+  let hideTimer=null;
+  let audioCtx = null;
+
+  function pad(n){return String(Math.floor(n)).padStart(2,'0')}
+
+  function updateValue(el, newValue) {
+    if(el.textContent !== newValue) {
+      el.textContent = newValue;
+      el.classList.remove('tick');
+      void el.offsetWidth;
+      el.classList.add('tick');
+    }
+  }
+
+  function initAudio() {
+    if (!audioCtx) {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (AudioContext) audioCtx = new AudioContext();
+    }
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+  }
+  document.addEventListener('click', initAudio, { once: true });
+  document.addEventListener('touchstart', initAudio, { once: true });
+
+  function playAlarmSound() {
+    try {
+      initAudio();
+      if (!audioCtx) return;
+      
+      const playBeep = (startTime, frequency, duration) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(frequency, startTime);
+        
+        gain.gain.setValueAtTime(0.2, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration - 0.05);
+        
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(startTime);
+        osc.stop(startTime + duration);
+      };
+
+      let now = audioCtx.currentTime;
+      for (let i = 0; i < 3; i++) {
+        playBeep(now + i * 0.6, 880, 0.12);
+        playBeep(now + i * 0.6 + 0.15, 880, 0.12);
+      }
+    } catch (e) { console.error(e); }
+  }
+
+  function setClock(){
+    const now=new Date();
+    let h=now.getHours(), m=now.getMinutes();
+    if(!format24){
+      ampm.style.display='';
+      ampm.textContent=h>=12?'PM':'AM';
+      h=h%12||12;
+    }else{
+      ampm.style.display='none';
+    }
+    updateValue(valH, pad(h));
+    updateValue(valM, pad(m));
+    $('labelH').textContent='часы';
+    $('labelM').textContent='минуты';
+  }
+
+  function setStopwatch(el){
+    const totalSec = Math.floor(el / 1000);
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+    
+    if (m < 60) {
+      updateValue(valH, pad(m));
+      updateValue(valM, pad(s));
+      $('labelH').textContent='минуты';
+      $('labelM').textContent='секунды';
+    } else {
+      const h = Math.floor(m / 60);
+      updateValue(valH, pad(h));
+      updateValue(valM, pad(m % 60));
+      $('labelH').textContent='часы';
+      $('labelM').textContent='минуты';
+    }
+  }
+
+  function setTimer(remain){
+    const total = Math.ceil(remain / 1000);
+    const h = Math.floor(total / 3600), m = Math.floor((total % 3600) / 60), s = total % 60;
+    
+    if(h > 0 || (+inputH.value > 0)){
+      updateValue(valH, pad(h));
+      updateValue(valM, pad(m));
+      $('labelH').textContent='часы';
+      $('labelM').textContent='минуты';
+    } else {
+      updateValue(valH, pad(m));
+      updateValue(valM, pad(s));
+      $('labelH').textContent='минуты';
+      $('labelM').textContent='секунды';
+    }
+    
+    if(tmTotal > 0){
+      const pct = remain / tmTotal;
+      timerCircle.style.strokeDashoffset = CIRC * (1 - pct);
+    } else {
+      timerCircle.style.strokeDashoffset = CIRC;
+    }
+  }
+
+  function tick(){
+    if(!running && mode!=='clock') {
+      raf = null;
+      return; 
+    }
+    
+    const now = Date.now();
+    
+    if(mode==='clock'){
+      setClock();
+      raf=requestAnimationFrame(tick);
+    }
+    else if(mode==='stopwatch'){
+      setStopwatch(now - swStart);
+      raf=requestAnimationFrame(tick);
+    }
+    else if(mode==='timer'){
+      tmRemain -= (now - tmLastTick);
+      tmLastTick = now;
+      
+      if(tmRemain <= 0){
+        tmRemain = 0;
+        running = false;
+        btnControl.textContent = 'Старт';
+        setTimer(0);
+        playAlarmSound();
+        alertOverlay.classList.add('visible');
+        raf = null;
+      } else {
+        setTimer(tmRemain);
+        raf=requestAnimationFrame(tick);
+      }
+    }
+  }
+
+  function updateTimerFromInputs() {
+    tmTotal = (+inputH.value * 3600 + +inputM.value * 60 + +inputS.value) * 1000;
+    tmRemain = tmTotal;
+    setTimer(tmRemain);
+  }
+
+  function updateNavIndicator(activeButton) {
+    const rect = activeButton.getBoundingClientRect();
+    const groupRect = navGroup.getBoundingClientRect();
+    navIndicator.style.width = `${rect.width}px`;
+    navIndicator.style.transform = `translateX(${rect.left - groupRect.left}px)`;
+  }
+
+  function switchMode(m){
+    running = false;
+    if(raf) {
+      cancelAnimationFrame(raf);
+      raf = null;
+    }
+    
+    const targetBtn = ({clock:btnClock,stopwatch:btnStopwatch,timer:btnTimer})[m];
+    [btnClock,btnStopwatch,btnTimer].forEach(b=>b.classList.remove('active'));
+    targetBtn.classList.add('active');
+    updateNavIndicator(targetBtn);
+    
+    btnControl.textContent = 'Старт';
+    
+    if(m==='clock') {
+      mode='clock';
+      btnControl.style.display='none';
+      btnReset.style.display='none';
+      timerInputGroup.style.display='none';
+      timerDial.classList.remove('active');
+      ampm.style.display=format24?'none':'';
+      running = true;
+      tick();
+    } 
+    else if(m==='stopwatch') {
+      mode='stopwatch';
+      swElapsed = 0;
+      btnControl.style.display='';
+      btnReset.style.display='';
+      timerInputGroup.style.display='none';
+      timerDial.classList.remove('active');
+      ampm.style.display='none';
+      setStopwatch(0);
+    } 
+    else if(m==='timer') {
+      mode='timer';
+      btnControl.style.display='';
+      btnReset.style.display='';
+      timerInputGroup.style.display='';
+      timerDial.classList.add('active');
+      ampm.style.display='none';
+      updateTimerFromInputs();
+    }
+  }
+
+  btnClock.onclick=()=>switchMode('clock');
+  btnStopwatch.onclick=()=>switchMode('stopwatch');
+  btnTimer.onclick=()=>switchMode('timer');
+
+  btnControl.onclick=()=>{
+    const now = Date.now();
+    if(mode==='stopwatch'){
+      if(!running){
+        swStart = now - swElapsed;
+        running = true;
+        btnControl.textContent = 'Пауза';
+        if(!raf) raf = requestAnimationFrame(tick);
+      } else {
+        swElapsed = now - swStart;
+        running = false;
+        btnControl.textContent = 'Продолжить';
+      }
+    } else if(mode==='timer'){
+      if(!running){
+        if(tmRemain <= 0) updateTimerFromInputs();
+        if(tmTotal <= 0) return; 
+        tmLastTick = now;
+        running = true;
+        btnControl.textContent = 'Пауза';
+        if(!raf) raf = requestAnimationFrame(tick);
+      } else {
+        running = false;
+        btnControl.textContent = 'Продолжить';
+      }
+    }
+  };
+
+  btnReset.onclick=()=>{
+    running = false;
+    if(raf) { cancelAnimationFrame(raf); raf = null; }
+    btnControl.textContent = 'Старт';
+    
+    if(mode==='stopwatch') {
+      swElapsed = 0;
+      setStopwatch(0);
+    } else if(mode==='timer') {
+      updateTimerFromInputs();
+    }
+  };
+
+  inputH.oninput = inputM.oninput = inputS.oninput = ()=>{
+    if(!running && mode==='timer') updateTimerFromInputs();
+  };
+
+  btnFormat.onclick=()=>{
+    format24=!format24;
+    btnFormat.textContent=format24?'24ч':'12ч';
+    if(mode==='clock') setClock();
+  };
+
+  btnAlertClose.onclick=()=>alertOverlay.classList.remove('visible');
+
+  const savedTheme = localStorage.getItem('theme') || 'light';
+  document.documentElement.setAttribute('data-theme', savedTheme);
+
+  btnThemeToggle.onclick=()=>{
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    const targetTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', targetTheme);
+    localStorage.setItem('theme', targetTheme);
+  };
+
+  const dots = document.querySelectorAll('.color-dot');
+
+  function setPalette(hue, sat, isMono) {
+    document.documentElement.style.setProperty('--hue', hue);
+    document.documentElement.style.setProperty('--sat', isMono ? '0%' : sat);
+    document.documentElement.style.setProperty('--is-mono', isMono ? '1' : '0');
+    
+    localStorage.setItem('p-hue', hue);
+    localStorage.setItem('p-sat', sat);
+    localStorage.setItem('p-mono', isMono ? '1' : '0');
+    
+    dots.forEach(dot => {
+      dot.classList.toggle('active', dot.getAttribute('data-hue') === hue && dot.getAttribute('data-mono') === (isMono ? '1' : '0'));
+    });
+  }
+
+  dots.forEach(dot => {
+    dot.onclick = () => {
+      const isMono = dot.getAttribute('data-mono') === '1';
+      setPalette(dot.getAttribute('data-hue'), dot.getAttribute('data-sat'), isMono);
+    };
+  });
+
+  const savedHue = localStorage.getItem('p-hue') || "0";
+  const savedSat = localStorage.getItem('p-sat') || "0%";
+  const savedMono = (localStorage.getItem('p-mono') !== '0');
+  setPalette(savedHue, savedSat, savedMono);
+
+  btnFullscreen.onclick=()=>{
+    if(!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{});
+    else document.exitFullscreen();
+  };
+
+  function resetHide(){
+    panel.classList.remove('hidden');
+    clockContainer.classList.remove('hidden');
+    document.body.style.cursor='';
+    clearTimeout(hideTimer);
+    hideTimer=setTimeout(()=>{
+      if(running || mode==='clock'){
+        panel.classList.add('hidden');
+        clockContainer.classList.add('hidden');
+        document.body.style.cursor='none';
+      }
+    },3500);
+  }
+  ['mousemove', 'click', 'keydown', 'touchstart'].forEach(e => document.addEventListener(e, resetHide));
+
+  window.addEventListener('load', () => {
+    switchMode('clock');
+    resetHide();
+  });
+  window.addEventListener('resize', () => {
+    const activeBtn = navGroup.querySelector('.btn.active');
+    if(activeBtn) updateNavIndicator(activeBtn);
+  });
+})();
+</script>
+</body>
+</html>
